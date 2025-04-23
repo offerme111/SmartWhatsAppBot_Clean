@@ -122,6 +122,19 @@ def send_message(to, body):
         messaging_service_sid=TWILIO_MESSAGING_SERVICE_SID
     )
 
+@app.route("/update-bot-info", methods=["POST"])
+def update_bot_info():
+    try:
+        data = request.get_json()
+        with open("bot_info.json", "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        return {"status": "success"}, 200
+    except Exception as e:
+        print("❌ Error updating bot info:", e)
+        return {"status": "error", "message": str(e)}, 500
+
+
+
 if __name__ == "__main__":
     print("✅ البوت يعمل على http://127.0.0.1:5000")
     import os
