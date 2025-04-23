@@ -1,6 +1,6 @@
 from flask import Flask, request, render_template, redirect
 from twilio.rest import Client
-import requests, os, sqlite3, smtplib
+import requests, os, sqlite3, smtplib, json
 from dotenv import load_dotenv
 from datetime import datetime
 from email.mime.text import MIMEText
@@ -122,21 +122,27 @@ def send_message(to, body):
         messaging_service_sid=TWILIO_MESSAGING_SERVICE_SID
     )
 
+# ✅ مسار استقبال التعديلات من الداشبورد
 @app.route("/update-bot-info", methods=["POST"])
 def update_bot_info():
     try:
         data = request.get_json()
+        if not data:
+            return {"error": "بيانات غير موجودة"}, 400
+
         with open("bot_info.json", "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
-        return {"status": "success"}, 200
+
+        print("✅ تم تحديث ملف bot_info.json")
+        return {"message": "تم التحديث بنجاح"}, 200
+
     except Exception as e:
-        print("❌ Error updating bot info:", e)
-        return {"status": "error", "message": str(e)}, 500
-
-
+        print("❌ خطأ في التحديث:", str(e))
+        return {"error": str(e)}, 500
+@app.route("/")
+def home():
+    return "<h2 style='text-align:center;margin-top:50px'>✅ البوت يعمل بنجاح!</h2>"
 
 if __name__ == "__main__":
     print("✅ البوت يعمل على http://127.0.0.1:5000")
-    import os
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
-
