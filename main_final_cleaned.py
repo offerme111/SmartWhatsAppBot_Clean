@@ -122,7 +122,6 @@ def send_message(to, body):
         messaging_service_sid=TWILIO_MESSAGING_SERVICE_SID
     )
 
-# ✅ مسار استقبال التعديلات من الداشبورد
 @app.route("/update-bot-info", methods=["POST"])
 def update_bot_info():
     try:
@@ -139,6 +138,17 @@ def update_bot_info():
     except Exception as e:
         print("❌ خطأ في التحديث:", str(e))
         return {"error": str(e)}, 500
+
+# ✅ المسار الجديد لعرض محتوى bot_info.json
+@app.route("/bot-info")
+def show_bot_info():
+    try:
+        with open("bot_info.json", "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return f"<h2>🧾 آخر بيانات البوت:</h2><pre>{json.dumps(data, ensure_ascii=False, indent=2)}</pre>"
+    except Exception as e:
+        return f"<h3>❌ خطأ في قراءة البيانات: {str(e)}</h3>"
+
 @app.route("/")
 def home():
     return "<h2 style='text-align:center;margin-top:50px'>✅ البوت يعمل بنجاح!</h2>"
