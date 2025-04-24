@@ -65,6 +65,16 @@ def send_email(subject, body):
         print("❌ Error sending email:", str(e))
 
 def get_ai_response(user_message, sender):
+    # 🧾 تحميل بيانات البوت
+    try:
+        with open("bot_info.json", "r", encoding="utf-8") as f:
+            bot_info = json.load(f)
+    except Exception as e:
+        bot_info = {
+            "company_name": "Offer ME",
+            "description": "نقدم خدمات العروض الترويجية"
+        }
+
     url = "https://openrouter.ai/api/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {os.getenv('OPENROUTER_API_KEY')}",
@@ -74,17 +84,20 @@ def get_ai_response(user_message, sender):
     previous = sessions.get(sender, {}).get("context", "")
     full_context = f"{previous}\n{user_message}"
 
+    system_message = f"""
+    أنت مساعد ذكي تمثل شركة {bot_info['company_name']}.
+    وصف الشركة: {bot_info['description']}.
+    اجعل ردودك قصيرة وواضحة.
+    تحدث مع العملاء بأسلوب احترافي وودود.
+    إذا شعرت أن الزبون مهتم بالخدمة، اطلب منه اسمه ونوع عمله ورقمه وإيميله.
+    لا تطلب أي معلومة إذا لم يكن مهتمًا بوضوح.
+    """
+
     data = {
         "model": "openai/gpt-3.5-turbo",
         "messages": [
-            {
-                "role": "system",
-                "content": "أنت مساعد ذكي تمثل شركة Offer ME. تحدث مع العملاء بأسلوب احترافي وودود. إذا شعرت أن الزبون مهتم بالخدمة، اطلب منه معلوماته مثل الاسم ونوع العمل والرقم والإيميل. لا تسأل عن البيانات إلا إذا كان الزبون مهتمًا بوضوح."
-            },
-            {
-                "role": "user",
-                "content": full_context
-            }
+            {"role": "system", "content": system_message},
+            {"role": "user", "content": full_context}
         ]
     }
 
@@ -139,7 +152,6 @@ def update_bot_info():
         print("❌ خطأ في التحديث:", str(e))
         return {"error": str(e)}, 500
 
-# ✅ المسار الجديد لعرض محتوى bot_info.json
 @app.route("/bot-info")
 def show_bot_info():
     try:
