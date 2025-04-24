@@ -20,6 +20,31 @@ EMAIL_RECEIVER = os.getenv("EMAIL_RECEIVER")
 
 sessions = {}
 
+# 🗂️ قاعدة بيانات المواعيد
+def init_db():
+    conn = sqlite3.connect("appointments.db")
+    c = conn.cursor()
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS appointments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sender TEXT,
+            datetime TEXT,
+            created_at TEXT
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+init_db()
+
+def save_appointment(sender, datetime_text):
+    conn = sqlite3.connect("appointments.db")
+    c = conn.cursor()
+    c.execute("INSERT INTO appointments (sender, datetime, created_at) VALUES (?, ?, ?)",
+              (sender, datetime_text, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+    conn.commit()
+    conn.close()
+
 def has_received_template(sender):
     conn = sqlite3.connect("messages.db")
     c = conn.cursor()
@@ -65,11 +90,10 @@ def send_email(subject, body):
         print("❌ Error sending email:", str(e))
 
 def get_ai_response(user_message, sender):
-    # 🧾 تحميل بيانات البوت
     try:
         with open("bot_info.json", "r", encoding="utf-8") as f:
             bot_info = json.load(f)
-    except Exception as e:
+    except Exception:
         bot_info = {
             "company_name": "Offer ME",
             "description": "نقدم خدمات العروض الترويجية"
@@ -91,6 +115,7 @@ def get_ai_response(user_message, sender):
     تحدث مع العملاء بأسلوب احترافي وودود.
     إذا شعرت أن الزبون مهتم بالخدمة، اطلب منه اسمه ونوع عمله ورقمه وإيميله.
     لا تطلب أي معلومة إذا لم يكن مهتمًا بوضوح.
+    إذا أراد الزبون حجز موعد، اطلب منه تحديد التاريخ والوقت.
     """
 
     data = {
@@ -104,12 +129,24 @@ def get_ai_response(user_message, sender):
     try:
         response = requests.post(url, headers=headers, json=data)
         reply = response.json()['choices'][0]['message']['content']
+
         sessions[sender] = sessions.get(sender, {})
         sessions[sender]["context"] = full_context + f"\n{reply}"
 
-        if any(word in user_message for word in ["@gmail", "@hotmail", "اسمي", "رقمي", "+974", "ايميلي"]):
+        combined = user_message + " " + reply
+
+        # 📧 إرسال إيميل عند وجود بيانات
+        if any(word in combined for word in ["@gmail", "@hotmail", "اسمي", "رقمي", "+974", "ايميلي"]):
             send_email("عميل محتمل من واتساب", f"رقم الزبون: {sender}\n\nرسالة:\n{user_message}\n\nرد البوت:\n{reply}")
+
+        # 📅 كشف نية الحجز
+        if any(word in user_message for word in ["موعد", "احجز", "ميعاد", "متى", "وقت"]):
+            if any(char.isdigit() for char in user_message) or "الساعة" in user_message:
+                save_appointment(sender, user_message)
+                send_email("🗓️ حجز موعد جديد", f"رقم الزبون: {sender}\n\nطلب الحجز:\n{user_message}\n\nرد البوت:\n{reply}")
+
         return reply
+
     except Exception as e:
         print("❌ OpenRouter Error:", str(e))
         return "حدث خطأ في الرد الذكي."
